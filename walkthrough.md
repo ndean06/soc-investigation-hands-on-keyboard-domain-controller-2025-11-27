@@ -24,7 +24,7 @@ The investigation began with a **Microsoft Defender alert indicating a possible 
 
 Reviewing the Defender alert story and timeline showed **repeated brute-force and possible logon breach alerts** tied to the same account over time. This pattern indicated intentional credential targeting rather than a benign anomaly.
 
-![Alert timeline showing repeated brute-force and logon breach activity](screenshots/2025-11-27-mts-dc-compromise-3.png)
+![Alert timeline showing repeated brute-force and logon breach activity](screenshots/2025-11-27-mts-dc-compromise-2.png)
 
 *Defender alert story showing repeated suspicious authentication attempts*
 
@@ -42,7 +42,7 @@ The results confirmed **multiple successful NTLM network logons** using the **ad
 - **Authentication:** NTLM  
 - **Account:** administrator  
 
-![Successful administrator logons using NTLM authentication](screenshots/2025-11-27-mts-dc-compromise-86.png)
+![Successful administrator logons using NTLM authentication](screenshots/2025-11-27-mts-dc-compromise-7.png)
 
 *Successful NTLM-based administrator logons from an external IP address*
 
@@ -55,6 +55,10 @@ The results confirmed **multiple successful NTLM network logons** using the **ad
 **Objective:** Determine what actions occurred after successful authentication.
 
 After identifying `80.64.19.57` as the source of successful logons, the investigation pivoted to **process execution telemetry** to determine whether the attacker performed actions post-logon.
+
+![Post-authentication discovery commands tied to attacker IP](screenshots/2025-11-27-mts-dc-compromise-78.png)
+
+*DeviceProcessEvents showing interactive PowerShell activity and domain discovery commands (`net.exe`, `net1.exe`) executed under the administrator account, directly associated with the attacker IP `80.64.19.57`.*
 
 ---
 
