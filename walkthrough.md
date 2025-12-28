@@ -1,163 +1,223 @@
 # SOC Investigation Walkthrough  
-## Hands-On Keyboard Activity on Domain Controller
-
+**Incident:** Hands-On Keyboard Attack Against Domain Controller  
 **Date:** 2025-11-27  
-**Affected Host:** `mts-dc.mts.local` (Windows Server 2022 – Domain Controller)  
-**Account Involved:** `mts\administrator`  
-**Tools Used:** Microsoft Defender XDR, Advanced Hunting (KQL)
+**System:** mts-dc.mts.local (Windows Domain Controller)  
+**Primary Account Targeted:** administrator  
 
 ---
 
 ## Step 1 — Initial Alert: Possible Logon Breach
 
-**Objective:** Identify the triggering alert and determine whether unauthorized access may have occurred.
+**Objective:** Identify why the investigation started.
 
-The investigation began with a **Microsoft Defender alert indicating a possible logon breach** on the domain controller. The alert flagged suspicious authentication activity involving an administrator account.
+The investigation began with a **Microsoft Defender alert indicating a possible logon breach** on the domain controller. The alert flagged suspicious authentication behavior involving the **administrator** account and required validation.
 
-![Possible logon breach alert involving administrator account](screenshots/2025-11-27-mts-dc-compromise-1.png)
+![Possible logon breach alert detected on domain controller](screenshots/2025-11-27-mts-dc-compromise-1.png)
 
 *Initial Defender alert indicating a possible logon breach on the domain controller*
 
 ---
 
-## Step 2 — Alert Story & Timeline Review
+## Step 2 — Alert Story & Pattern Recognition
 
-**Objective:** Determine whether the alert represents a single event or repeated activity.
+**Objective:** Determine whether the alert represents isolated activity or a pattern.
 
-Reviewing the **Defender alert story and timeline** revealed multiple related alerts, including **possible brute-force activity** and repeated **possible logon breach detections** targeting the same administrator account over a short period of time.
+Reviewing the Defender alert story and timeline showed **repeated brute-force and possible logon breach alerts** tied to the same account over time. This pattern indicated intentional credential targeting rather than a benign anomaly.
 
-![Alert timeline showing repeated possible logon breach and brute-force activity](screenshots/3d181d8f-cfec-4caf-8baf-7d9ea1ac557c.png)
+![Alert timeline showing repeated brute-force and logon breach activity](screenshots/2025-11-27-mts-dc-compromise-3.png)
 
-*Defender alert story showing repeated possible logon breach and brute-force activity*
-
----
-
-## Step 3 — Authentication Validation (Advanced Hunting)
-
-**Objective:** Confirm whether suspicious authentication attempts were successful.
-
-Advanced Hunting queries against **DeviceLogonEvents** confirmed:
-- Multiple **successful network logons**
-- Use of the **administrator** account
-- NTLM authentication
-- Logons originating from **external IP addresses**
-
-This validated that **valid credentials were successfully used**, escalating the investigation from attempted access to **confirmed credential abuse**.
-
-![Successful administrator network logons from external IP addresses](screenshots/2025-11-27-mts-dc-compromise-95.png)
-
-*Successful NTLM-based administrator logons from external IP addresses*
+*Defender alert story showing repeated suspicious authentication attempts*
 
 ---
 
-## Step 4 — Incident Correlation: Hands-On Keyboard Activity
+## Step 3 — Authentication Validation (Were Any Logons Successful?)
 
-**Objective:** Determine whether successful logons led to interactive attacker behavior.
+**Objective:** Confirm whether the attacker successfully authenticated.
 
-Microsoft Defender XDR correlated the authentication activity into a broader incident and identified **hands-on keyboard activity**, indicating manual interaction rather than automated malware execution.
+Authentication telemetry (`DeviceLogonEvents`) was reviewed to validate whether any of the suspicious attempts resulted in successful access.
 
-![Defender XDR incident overview identifying hands-on keyboard activity](screenshots/2025-11-27-mts-dc-compromise-96.png)
+The results confirmed **multiple successful NTLM network logons** using the **administrator** account from an external IP address.
 
-*Defender XDR incident overview showing hands-on keyboard activity*
+- **Source IP:** `80.64.19.57`  
+- **Authentication:** NTLM  
+- **Account:** administrator  
 
----
+![Successful administrator logons using NTLM authentication](screenshots/2025-11-27-mts-dc-compromise-86.png)
 
-## Step 5 — Interactive Process Execution
+*Successful NTLM-based administrator logons from an external IP address*
 
-**Objective:** Validate human-driven activity on the domain controller.
-
-Process telemetry showed:
-- Interactive PowerShell execution
-- Native Windows tools launched
-- Activity tied directly to administrator logon sessions
-
-The timing and execution flow strongly supported **hands-on keyboard behavior**.
-
-![Interactive PowerShell and native command execution](screenshots/2025-11-27-mts-dc-compromise-77.png)
-
-*Interactive PowerShell and native process execution under administrator context*
+📌 **IOC Identified:** `80.64.19.57`
 
 ---
 
-## Step 6 — Discovery and Enumeration Activity
+## Step 4 — Pivot on Initial IOC (Attacker IP)
 
-**Objective:** Identify attacker intent following privileged access.
+**Objective:** Determine what actions occurred after successful authentication.
 
-Following interactive access, telemetry showed:
-- LDAP search activity
-- Directory and account enumeration
-- Discovery actions aligned with Active Directory reconnaissance
-
-This behavior is consistent with post-compromise **domain discovery**.
-
-![LDAP search and directory discovery activity](screenshots/2025-11-27-mts-dc-compromise-91.png)
-
-*LDAP-based discovery activity indicating Active Directory reconnaissance*
+After identifying `80.64.19.57` as the source of successful logons, the investigation pivoted to **process execution telemetry** to determine whether the attacker performed actions post-logon.
 
 ---
 
-## Step 7 — Suspicious File Activity
+## Step 5 — Confirm Hands-On Keyboard Activity
 
-**Objective:** Identify potential attacker tooling or payloads.
+**Objective:** Validate whether activity was interactive.
 
-File events revealed:
-- Creation of a previously unseen executable
-- Execution shortly after discovery activity
-- Elevated execution context on the domain controller
+Process telemetry showed execution of **PowerShell and native Windows utilities** under the administrator context shortly after authentication. The timing and tool selection indicate **human-driven, hands-on keyboard activity**.
 
-The file was later flagged by Defender as suspicious.
+![Interactive process execution following administrator logon](screenshots/2025-11-27-mts-dc-compromise-26.png)
 
-![Suspicious executable created on the domain controller](screenshots/2025-11-27-mts-dc-compromise-90.png)
-
-*Creation of a suspicious executable on the domain controller*
+*Interactive PowerShell and built-in Windows utilities executed under the administrator account*
 
 ---
 
-## Step 8 — Defender Detection & Attack Disruption
+## Step 6 — Discovery and Reconnaissance Activity
 
-**Objective:** Confirm security control response and containment.
+**Objective:** Identify attacker intent following access.
 
-Microsoft Defender XDR:
-- Detected the suspicious executable
-- Generated high-confidence alerts
-- Initiated **automated attack disruption actions**
+Command-line telemetry confirmed discovery activity, including execution of `whoami.exe` and domain-related enumeration commands. These actions indicate the attacker was validating privileges and assessing the environment.
 
-This response interrupted the activity before further progression.
+![Discovery command execution after administrator logon](screenshots/2025-11-27-mts-dc-compromise-27.png)
 
-![Defender XDR incident graph showing attack disruption](screenshots/2025-11-27-mts-dc-compromise-99.png)
-
-*Defender XDR incident graph showing automated attack disruption actions*
+*Execution of discovery commands indicating environment reconnaissance*
 
 ---
 
-## Step 9 — Scope and Impact Assessment
+## Step 7 — Expansion of Attacker Infrastructure Observed
 
-**Objective:** Determine whether the compromise spread or persisted.
+**Objective:** Identify whether additional infrastructure was used.
 
-Further investigation showed:
-- No confirmed persistence mechanisms
-- No lateral movement beyond the domain controller
-- No evidence of data exfiltration
+Subsequent authentication and network telemetry showed activity originating from a **second external IP address**, indicating attacker infrastructure rotation.
 
-Network telemetry during the timeframe showed expected outbound connections only.
+- **Source IP:** `202.53.6.68`
 
-![Network activity showing no confirmed data exfiltration](screenshots/2025-11-27-mts-dc-compromise-88.png)
+![Network activity from secondary external IP](screenshots/2025-11-27-mts-dc-compromise-77.png)
 
-*Network telemetry showing no evidence of data exfiltration*
+*Network activity originating from secondary attacker infrastructure*
+
+📌 **IOC Identified:** `202.53.6.68`
 
 ---
 
-## Walkthrough Summary
+## Step 8 — Malicious File Creation Detected
 
-This investigation demonstrates:
-- Detection of credential abuse via Defender alerts
-- Validation of successful administrator logons
-- Identification of hands-on keyboard activity
-- Active Directory discovery and enumeration
-- Detection of suspicious file execution
-- Automated attack disruption by Defender XDR
-- Effective scoping to confirm limited impact
+**Objective:** Identify malicious artifacts written to disk.
 
-➡️ **For conclusions, remediation actions, and lessons learned, see the formal investigation report.**
+File creation telemetry revealed a **previously unseen executable** written to the Windows directory.
 
-📄 [Investigation Report (PDF)](investigation-report/investigation-report.pdf)
+- **File:** `RRcatEtz.exe`  
+- **Path:** `C:\Windows\RRcatEtz.exe`
+
+![Malicious executable created on domain controller](screenshots/2025-11-27-mts-dc-compromise-82.png)
+
+*Creation of malicious executable RRcatEtz.exe on the domain controller*
+
+📌 **IOC Identified (SHA-256):**  
+`3c2fe308c0a563e06263bbacf793bbe9b2259d795fcc36b953793a7e499e7f71`
+
+---
+
+## Step 9 — Persistence Attempt via Service Creation
+
+**Objective:** Identify persistence mechanisms.
+
+Shortly after the file drop, a **new Windows service** was created to execute the malicious binary, indicating an attempt to establish persistence.
+
+- **Service Name:** `inWO`  
+- **Executable:** `RRcatEtz.exe`
+
+![Malicious service created for persistence](screenshots/2025-11-27-mts-dc-compromise-83.png)
+
+*Creation of a malicious service configured to execute RRcatEtz.exe*
+
+📌 **IOC Identified:** Service name `inWO`
+
+---
+
+## Step 10 — Defender Detection and Prevention (CryptInject)
+
+**Objective:** Validate defensive response.
+
+Microsoft Defender detected and prevented **CryptInject behavior** involving a suspicious `svchost.exe` executing from a non-standard path.
+
+- **Detected Path:** `C:\Windows\Temp\svchost.exe`  
+- **Legitimate Path:** `C:\Windows\System32\svchost.exe`
+
+![Defender detection preventing CryptInject activity](screenshots/2025-11-27-mts-dc-compromise-92.png)
+
+*Defender detection preventing CryptInject behavior*
+
+📌 **IOC Identified (SHA-256):**  
+`60b6d7664598e6a988d9389e6359838be966dfa54859d5cb1453cbc9b126ed7d`
+
+---
+
+## Step 11 — Lateral Movement Attempts Blocked
+
+**Objective:** Identify attempted spread within the environment.
+
+SMB-based lateral movement attempts originating from attacker infrastructure were **automatically blocked** by Defender.
+
+![SMB lateral movement attempts blocked](screenshots/2025-11-27-mts-dc-compromise-95.png)
+
+*SMB file access attempts automatically blocked by Defender*
+
+---
+
+## Step 12 — Post-Containment Access Attempts
+
+**Objective:** Identify follow-on attacker behavior.
+
+After containment actions, additional administrator logons and domain enumeration commands were attempted from **new external infrastructure**, but were blocked.
+
+- **Source IP:** `2.57.121.20`  
+- **Host:** `WIN-NP17C2HUTL5`
+
+![Blocked domain enumeration attempts after containment](screenshots/2025-11-27-mts-dc-compromise-97.png)
+
+*Blocked domain enumeration attempts following user containment*
+
+📌 **IOC Identified:**  
+- `2.57.121.20`  
+- `WIN-NP17C2HUTL5`
+
+---
+
+## Step 13 — Final Observed Access Attempt
+
+**Objective:** Identify residual attacker activity.
+
+A final administrator login attempt was observed from a different external IP address, indicating continued but unsuccessful attacker interest.
+
+- **Source IP:** `93.123.109.245`
+
+![Final administrator login attempt from external IP](screenshots/2025-11-27-mts-dc-compromise-98.png)
+
+*Final observed administrator login attempt from external infrastructure*
+
+📌 **IOC Identified:** `93.123.109.245`
+
+---
+
+## IOC Summary (Derived During Investigation)
+
+| Type | Value | Context |
+|----|------|--------|
+| IP | 80.64.19.57 | Initial brute force + successful NTLM admin logons |
+| IP | 202.53.6.68 | Malware drop, service creation, SMB attempts |
+| IP | 2.57.121.20 | Post-containment admin access attempts |
+| IP | 93.123.109.245 | Final observed login attempt |
+| File Hash | 3c2fe308c0a563e06263bbacf793bbe9b2259d795fcc36b953793a7e499e7f71 | RRcatEtz.exe |
+| File Hash | 60b6d7664598e6a988d9389e6359838be966dfa54859d5cb1453cbc9b126ed7d | Fake svchost.exe (CryptInject) |
+| Service | inWO | Persistence mechanism |
+
+---
+
+## Final Assessment
+
+- **Attack Type:** Hands-on keyboard domain controller compromise  
+- **Initial Access:** NTLM administrator authentication following brute-force activity  
+- **Persistence Attempt:** Malicious service creation  
+- **Defensive Outcome:** Execution, lateral movement, and discovery blocked by Defender  
+- **Impact:** Contained before successful lateral movement or data exfiltration  
+
+➡️ See the **Investigation Report** for remediation actions and lessons learned.
