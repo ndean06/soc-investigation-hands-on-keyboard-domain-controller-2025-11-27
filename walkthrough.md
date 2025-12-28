@@ -14,7 +14,9 @@ The investigation began after Microsoft Defender generated high-severity alerts 
 **Timeline correlation:**
 - `2025-11-26 23:53:23` – Brute force activity from `80.64.19.57`
 
-![Defender alert story showing repeated suspicious authentication attempts](screenshots/2025-11-27-mts-dc-compromise-1.png)
+![Defender alert story showing repeated suspicious authentication attempts](screenshots/2025-11-27-mts-dc-compromise-2.png)
+
+*Defender alert timeline showing repeated brute force and possible logon breach alerts targeting the domain controller.*
 
 ---
 
@@ -28,7 +30,9 @@ Authentication telemetry confirmed that the brute force activity **did result in
 - `2025-11-26 23:53:21` – Successful network logon from `80.64.19.57` (administrator)
 - `2025-11-27 04:24:38` – Successful remote logon from `80.64.19.57`
 
-![Successful administrator logons using NTLM authentication](screenshots/2025-11-27-mts-dc-compromise-3.png)
+![Successful administrator logons using NTLM authentication](screenshots/2025-11-27-mts-dc-compromise-7.png)
+
+*LogonSuccess events confirming administrator authentication via NTLM from an external IP address.*
 
 ---
 
@@ -36,15 +40,15 @@ Authentication telemetry confirmed that the brute force activity **did result in
 
 **Objective:** Determine whether successful authentication led to attacker interaction.
 
-Following the confirmed logon, process execution telemetry was reviewed to identify post-authentication activity. Shortly after the successful remote logon, the attacker executed discovery commands to validate access and context.
+Following the confirmed logon, process execution telemetry was reviewed. Shortly after authentication, the attacker executed discovery commands to validate access and privileges.
 
 **Timeline correlation:**
 - `2025-11-27 04:25:50` – Discovery command executed (`whoami.exe`)
 - `2025-11-27 04:25:59` – Logoff event
 
-![Discovery command execution following successful administrator logon](screenshots/2025-11-27-mts-dc-compromise-4.png)
+![Discovery command execution following successful administrator logon](screenshots/2025-11-27-mts-dc-compromise-7.png)
 
-This activity confirms **interactive hands-on-keyboard behavior** rather than automated exploitation.
+*Execution of discovery commands shortly after successful administrator authentication.*
 
 ---
 
@@ -52,14 +56,16 @@ This activity confirms **interactive hands-on-keyboard behavior** rather than au
 
 **Objective:** Identify escalation or follow-on activity after initial access.
 
-Later telemetry showed additional access attempts from a different external IP, followed by file creation and service installation activity consistent with malware deployment and persistence.
+Later telemetry showed additional access attempts from a different external IP, followed by suspicious file creation and service installation activity consistent with malware deployment.
 
 **Timeline correlation:**
 - `2025-11-27 06:07:14` – Network logon from `202.53.6.68`
 - `2025-11-27 06:07:20` – File created: `RRcatEtz.exe`
-- `2025-11-27 06:07:27` – New service created (`inWO`) executing `RRcatEtz.exe`
+- `2025-11-27 06:07:27` – New service created to execute `RRcatEtz.exe`
 
-![Suspicious file creation and service installation activity](screenshots/2025-11-27-mts-dc-compromise-25.png)
+![Suspicious file creation and service installation activity](screenshots/2025-11-27-mts-dc-compromise-20.png)
+
+*Creation of a suspicious executable and associated service indicating persistence activity.*
 
 ---
 
@@ -67,22 +73,22 @@ Later telemetry showed additional access attempts from a different external IP, 
 
 **Objective:** Identify attempts to evade security controls.
 
-Defender detected and prevented an executable masquerading as `svchost.exe` running from a non-standard directory, indicating a likely **process injection or masquerading attempt**.
+Defender detected and prevented a suspicious executable masquerading as `svchost.exe` running from a non-standard directory, indicating an attempted defense evasion technique.
 
 **Timeline correlation:**
-- `2025-11-27 06:08:51` – CryptInject behavior detected and blocked  
-  - Malicious path: `C:\Windows\Temp\svchost.exe`
-  - Legitimate path should be: `C:\Windows\System32\svchost.exe`
+- `2025-11-27 06:08:51` – CryptInject behavior detected and blocked
 
-![Defender detection of suspicious svchost.exe masquerading attempt](screenshots/2025-11-27-mts-dc-compromise-26.png)
+![Defender detection of svchost.exe masquerading attempt](screenshots/2025-11-27-mts-dc-compromise-30.png)
+
+*Defender detection showing a malicious svchost.exe executed from an abnormal file path.*
 
 ---
 
 ## Step 6 — Lateral Movement Attempts Blocked
 
-**Objective:** Assess lateral movement and impact.
+**Objective:** Assess lateral movement attempts and impact.
 
-Subsequent activity showed multiple **SMB file access attempts** from the attacker infrastructure. These attempts were automatically blocked by Defender, preventing further lateral movement.
+Multiple SMB file access attempts originating from attacker infrastructure were observed and automatically blocked, preventing further spread within the environment.
 
 **Timeline correlation:**
 - `2025-11-27 07:36:14` – SMBFileOpenBlocked from `202.53.6.68`
@@ -90,38 +96,44 @@ Subsequent activity showed multiple **SMB file access attempts** from the attack
 
 ![SMB lateral movement attempts blocked by Defender](screenshots/2025-11-27-mts-dc-compromise-27.png)
 
+*Defender blocking SMB-based lateral movement attempts from external attacker IPs.*
+
 ---
 
 ## Step 7 — Continued Credential Abuse Attempts
 
 **Objective:** Identify further attempts to reuse compromised credentials.
 
-Additional administrator logons were observed from new external systems, followed by discovery commands and access attempts. Defender containment prevented further compromise.
+Additional administrator logons were detected from new external systems, followed by domain discovery activity. Defender containment controls prevented further compromise.
 
 **Timeline correlation:**
 - `2025-11-27 14:30:48` – Administrator login from `2.57.121.20`
 - `2025-11-27 14:59:56` – Domain discovery commands executed
-- `2025-11-27 14:59:33` – ContainedUserRpcAccessBlocked (attack failed)
+- `2025-11-27 14:59:33` – ContainedUserRpcAccessBlocked event
 
 ![Blocked credential abuse and discovery attempts](screenshots/2025-11-27-mts-dc-compromise-28.png)
+
+*Blocked credential reuse and discovery activity following containment enforcement.*
 
 ---
 
 ## Step 8 — Incident Scope & Final Assessment
 
-**Objective:** Summarize impact and response.
+**Objective:** Understand the full scope of the attack.
 
-The Defender incident graph was reviewed to understand the overall scope of the attack, including affected assets, IP addresses, and user accounts.
+The Defender incident graph was reviewed to visualize relationships between affected assets, attacker IPs, processes, and user accounts.
 
 ![Incident graph showing post-compromise attacker activity](screenshots/2025-11-27-mts-dc-compromise-incident-graph.png)
+
+*Incident graph illustrating attacker interactions, affected assets, and investigation scope.*
 
 ---
 
 ## Investigation Outcome
 
-- Initial brute force attack resulted in successful administrator authentication
-- Hands-on-keyboard activity confirmed through interactive discovery commands
-- Malware deployment and persistence attempted
-- Defense evasion techniques detected and blocked
-- Lateral movement attempts prevented
-- Attack contained through automated Defender disruption actions
+- Brute force attack resulted in successful administrator authentication  
+- Hands-on-keyboard activity confirmed through interactive discovery commands  
+- Malware deployment and persistence attempts identified  
+- Defense evasion techniques detected and blocked  
+- Lateral movement attempts prevented  
+- Attack successfully contained through Defender disruption actions
