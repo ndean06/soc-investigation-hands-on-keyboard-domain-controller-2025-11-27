@@ -111,7 +111,7 @@ Additional administrator logons were detected from new external systems, followe
 - `2025-11-27 14:59:56` – Domain discovery commands executed
 - `2025-11-27 14:59:33` – ContainedUserRpcAccessBlocked event
 
-![Blocked credential abuse and discovery attempts](screenshots/2025-11-27-mts-dc-compromise-28.png)
+![Blocked credential abuse and discovery attempts](screenshots/2025-11-27-mts-dc-compromise-37.png)
 
 *Blocked credential reuse and discovery activity following containment enforcement.*
 
