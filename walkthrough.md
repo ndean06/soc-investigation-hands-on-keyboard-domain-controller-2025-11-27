@@ -1,227 +1,127 @@
 # SOC Investigation Walkthrough  
-**Incident:** Hands-On Keyboard Attack Against Domain Controller  
+**Incident:** Hands-on Keyboard Attack Against Domain Controller  
 **Date:** 2025-11-27  
-**System:** mts-dc.mts.local (Windows Domain Controller)  
-**Primary Account Targeted:** administrator  
+**Target:** mts-dc.mts.local (Windows Server 2022 – Domain Controller)
 
 ---
 
-## Step 1 — Initial Alert: Possible Logon Breach
+## Step 1 — Initial Alert & Brute Force Activity
 
-**Objective:** Identify why the investigation started.
+**Objective:** Identify the triggering alert and determine if malicious activity is present.
 
-The investigation began with a **Microsoft Defender alert indicating a possible logon breach** on the domain controller. The alert flagged suspicious authentication behavior involving the **administrator** account and required validation.
+The investigation began after Microsoft Defender generated high-severity alerts indicating a **possible logon breach** and **brute force activity** against the domain controller. The alerts pointed to repeated authentication attempts originating from the external IP address `80.64.19.57`.
 
-![Possible logon breach alert detected on domain controller](screenshots/2025-11-27-mts-dc-compromise-1.png)
+**Timeline correlation:**
+- `2025-11-26 23:53:23` – Brute force activity from `80.64.19.57`
 
-*Initial Defender alert indicating a possible logon breach on the domain controller*
-
----
-
-## Step 2 — Alert Story & Pattern Recognition
-
-**Objective:** Determine whether the alert represents isolated activity or a pattern.
-
-Reviewing the Defender alert story and timeline showed **repeated brute-force and possible logon breach alerts** tied to the same account over time. This pattern indicated intentional credential targeting rather than a benign anomaly.
-
-![Alert timeline showing repeated brute-force and logon breach activity](screenshots/2025-11-27-mts-dc-compromise-2.png)
-
-*Defender alert story showing repeated suspicious authentication attempts*
+![Defender alert story showing repeated suspicious authentication attempts](screenshots/2025-11-27-mts-dc-compromise-1.png)
 
 ---
 
-## Step 3 — Authentication Validation (Were Any Logons Successful?)
+## Step 2 — Authentication Validation (Successful Logons Identified)
 
-**Objective:** Confirm whether the attacker successfully authenticated.
+**Objective:** Determine whether brute force attempts resulted in successful authentication.
 
-Authentication telemetry (`DeviceLogonEvents`) was reviewed to validate whether any of the suspicious attempts resulted in successful access.
+Authentication telemetry confirmed that the brute force activity **did result in successful administrator logons** using NTLM authentication.
 
-The results confirmed **multiple successful NTLM network logons** using the **administrator** account from an external IP address.
+**Timeline correlation:**
+- `2025-11-26 23:53:21` – Successful network logon from `80.64.19.57` (administrator)
+- `2025-11-27 04:24:38` – Successful remote logon from `80.64.19.57`
 
-- **Source IP:** `80.64.19.57`  
-- **Authentication:** NTLM  
-- **Account:** administrator  
-
-![Successful administrator logons using NTLM authentication](screenshots/2025-11-27-mts-dc-compromise-7.png)
-
-*Successful NTLM-based administrator logons from an external IP address*
-
-📌 **IOC Identified:** `80.64.19.57`
+![Successful administrator logons using NTLM authentication](screenshots/2025-11-27-mts-dc-compromise-3.png)
 
 ---
 
-## Step 4 — Pivot on Initial IOC (Attacker IP)
+## Step 3 — Post-Logon Activity Review (Initial Hands-on Interaction)
 
-**Objective:** Determine what actions occurred after successful authentication.
+**Objective:** Determine whether successful authentication led to attacker interaction.
 
-After identifying `80.64.19.57` as the source of successful logons, the investigation pivoted to **process execution telemetry** to determine whether the attacker performed actions post-logon.
+Following the confirmed logon, process execution telemetry was reviewed to identify post-authentication activity. Shortly after the successful remote logon, the attacker executed discovery commands to validate access and context.
 
-![Post-authentication discovery commands tied to attacker IP](screenshots/2025-11-27-mts-dc-compromise-78.png)
+**Timeline correlation:**
+- `2025-11-27 04:25:50` – Discovery command executed (`whoami.exe`)
+- `2025-11-27 04:25:59` – Logoff event
 
-*DeviceProcessEvents showing interactive PowerShell activity and domain discovery commands (`net.exe`, `net1.exe`) executed under the administrator account, directly associated with the attacker IP `80.64.19.57`.*
+![Discovery command execution following successful administrator logon](screenshots/2025-11-27-mts-dc-compromise-4.png)
 
----
-
-## Step 5 — Confirm Hands-On Keyboard Activity
-
-**Objective:** Validate whether activity was interactive.
-
-Process telemetry showed execution of **PowerShell and native Windows utilities** under the administrator context shortly after authentication. The timing and tool selection indicate **human-driven, hands-on keyboard activity**.
-
-![Interactive process execution following administrator logon](screenshots/2025-11-27-mts-dc-compromise-26.png)
-
-*Interactive PowerShell and built-in Windows utilities executed under the administrator account*
+This activity confirms **interactive hands-on-keyboard behavior** rather than automated exploitation.
 
 ---
 
-## Step 6 — Discovery and Reconnaissance Activity
+## Step 4 — Secondary Access & Malware Deployment
 
-**Objective:** Identify attacker intent following access.
+**Objective:** Identify escalation or follow-on activity after initial access.
 
-Command-line telemetry confirmed discovery activity, including execution of `whoami.exe` and domain-related enumeration commands. These actions indicate the attacker was validating privileges and assessing the environment.
+Later telemetry showed additional access attempts from a different external IP, followed by file creation and service installation activity consistent with malware deployment and persistence.
 
-![Discovery command execution after administrator logon](screenshots/2025-11-27-mts-dc-compromise-27.png)
+**Timeline correlation:**
+- `2025-11-27 06:07:14` – Network logon from `202.53.6.68`
+- `2025-11-27 06:07:20` – File created: `RRcatEtz.exe`
+- `2025-11-27 06:07:27` – New service created (`inWO`) executing `RRcatEtz.exe`
 
-*Execution of discovery commands indicating environment reconnaissance*
-
----
-
-## Step 7 — Expansion of Attacker Infrastructure Observed
-
-**Objective:** Identify whether additional infrastructure was used.
-
-Subsequent authentication and network telemetry showed activity originating from a **second external IP address**, indicating attacker infrastructure rotation.
-
-- **Source IP:** `202.53.6.68`
-
-![Network activity from secondary external IP](screenshots/2025-11-27-mts-dc-compromise-77.png)
-
-*Network activity originating from secondary attacker infrastructure*
-
-📌 **IOC Identified:** `202.53.6.68`
+![Suspicious file creation and service installation activity](screenshots/2025-11-27-mts-dc-compromise-25.png)
 
 ---
 
-## Step 8 — Malicious File Creation Detected
+## Step 5 — Defense Evasion Attempt Detected
 
-**Objective:** Identify malicious artifacts written to disk.
+**Objective:** Identify attempts to evade security controls.
 
-File creation telemetry revealed a **previously unseen executable** written to the Windows directory.
+Defender detected and prevented an executable masquerading as `svchost.exe` running from a non-standard directory, indicating a likely **process injection or masquerading attempt**.
 
-- **File:** `RRcatEtz.exe`  
-- **Path:** `C:\Windows\RRcatEtz.exe`
+**Timeline correlation:**
+- `2025-11-27 06:08:51` – CryptInject behavior detected and blocked  
+  - Malicious path: `C:\Windows\Temp\svchost.exe`
+  - Legitimate path should be: `C:\Windows\System32\svchost.exe`
 
-![Malicious executable created on domain controller](screenshots/2025-11-27-mts-dc-compromise-82.png)
-
-*Creation of malicious executable RRcatEtz.exe on the domain controller*
-
-📌 **IOC Identified (SHA-256):**  
-`3c2fe308c0a563e06263bbacf793bbe9b2259d795fcc36b953793a7e499e7f71`
+![Defender detection of suspicious svchost.exe masquerading attempt](screenshots/2025-11-27-mts-dc-compromise-26.png)
 
 ---
 
-## Step 9 — Persistence Attempt via Service Creation
+## Step 6 — Lateral Movement Attempts Blocked
 
-**Objective:** Identify persistence mechanisms.
+**Objective:** Assess lateral movement and impact.
 
-Shortly after the file drop, a **new Windows service** was created to execute the malicious binary, indicating an attempt to establish persistence.
+Subsequent activity showed multiple **SMB file access attempts** from the attacker infrastructure. These attempts were automatically blocked by Defender, preventing further lateral movement.
 
-- **Service Name:** `inWO`  
-- **Executable:** `RRcatEtz.exe`
+**Timeline correlation:**
+- `2025-11-27 07:36:14` – SMBFileOpenBlocked from `202.53.6.68`
+- `2025-11-27 10:54:43` – Additional SMBFileOpenBlocked event
 
-![Malicious service created for persistence](screenshots/2025-11-27-mts-dc-compromise-83.png)
-
-*Creation of a malicious service configured to execute RRcatEtz.exe*
-
-📌 **IOC Identified:** Service name `inWO`
+![SMB lateral movement attempts blocked by Defender](screenshots/2025-11-27-mts-dc-compromise-27.png)
 
 ---
 
-## Step 10 — Defender Detection and Prevention (CryptInject)
+## Step 7 — Continued Credential Abuse Attempts
 
-**Objective:** Validate defensive response.
+**Objective:** Identify further attempts to reuse compromised credentials.
 
-Microsoft Defender detected and prevented **CryptInject behavior** involving a suspicious `svchost.exe` executing from a non-standard path.
+Additional administrator logons were observed from new external systems, followed by discovery commands and access attempts. Defender containment prevented further compromise.
 
-- **Detected Path:** `C:\Windows\Temp\svchost.exe`  
-- **Legitimate Path:** `C:\Windows\System32\svchost.exe`
+**Timeline correlation:**
+- `2025-11-27 14:30:48` – Administrator login from `2.57.121.20`
+- `2025-11-27 14:59:56` – Domain discovery commands executed
+- `2025-11-27 14:59:33` – ContainedUserRpcAccessBlocked (attack failed)
 
-![Defender detection preventing CryptInject activity](screenshots/2025-11-27-mts-dc-compromise-92.png)
-
-*Defender detection preventing CryptInject behavior*
-
-📌 **IOC Identified (SHA-256):**  
-`60b6d7664598e6a988d9389e6359838be966dfa54859d5cb1453cbc9b126ed7d`
+![Blocked credential abuse and discovery attempts](screenshots/2025-11-27-mts-dc-compromise-28.png)
 
 ---
 
-## Step 11 — Lateral Movement Attempts Blocked
+## Step 8 — Incident Scope & Final Assessment
 
-**Objective:** Identify attempted spread within the environment.
+**Objective:** Summarize impact and response.
 
-SMB-based lateral movement attempts originating from attacker infrastructure were **automatically blocked** by Defender.
+The Defender incident graph was reviewed to understand the overall scope of the attack, including affected assets, IP addresses, and user accounts.
 
-![SMB lateral movement attempts blocked](screenshots/2025-11-27-mts-dc-compromise-95.png)
-
-*SMB file access attempts automatically blocked by Defender*
+![Incident graph showing post-compromise attacker activity](screenshots/2025-11-27-mts-dc-compromise-incident-graph.png)
 
 ---
 
-## Step 12 — Post-Containment Access Attempts
+## Investigation Outcome
 
-**Objective:** Identify follow-on attacker behavior.
-
-After containment actions, additional administrator logons and domain enumeration commands were attempted from **new external infrastructure**, but were blocked.
-
-- **Source IP:** `2.57.121.20`  
-- **Host:** `WIN-NP17C2HUTL5`
-
-![Blocked domain enumeration attempts after containment](screenshots/2025-11-27-mts-dc-compromise-97.png)
-
-*Blocked domain enumeration attempts following user containment*
-
-📌 **IOC Identified:**  
-- `2.57.121.20`  
-- `WIN-NP17C2HUTL5`
-
----
-
-## Step 13 — Final Observed Access Attempt
-
-**Objective:** Identify residual attacker activity.
-
-A final administrator login attempt was observed from a different external IP address, indicating continued but unsuccessful attacker interest.
-
-- **Source IP:** `93.123.109.245`
-
-![Final administrator login attempt from external IP](screenshots/2025-11-27-mts-dc-compromise-98.png)
-
-*Final observed administrator login attempt from external infrastructure*
-
-📌 **IOC Identified:** `93.123.109.245`
-
----
-
-## IOC Summary (Derived During Investigation)
-
-| Type | Value | Context |
-|----|------|--------|
-| IP | 80.64.19.57 | Initial brute force + successful NTLM admin logons |
-| IP | 202.53.6.68 | Malware drop, service creation, SMB attempts |
-| IP | 2.57.121.20 | Post-containment admin access attempts |
-| IP | 93.123.109.245 | Final observed login attempt |
-| File Hash | 3c2fe308c0a563e06263bbacf793bbe9b2259d795fcc36b953793a7e499e7f71 | RRcatEtz.exe |
-| File Hash | 60b6d7664598e6a988d9389e6359838be966dfa54859d5cb1453cbc9b126ed7d | Fake svchost.exe (CryptInject) |
-| Service | inWO | Persistence mechanism |
-
----
-
-## Final Assessment
-
-- **Attack Type:** Hands-on keyboard domain controller compromise  
-- **Initial Access:** NTLM administrator authentication following brute-force activity  
-- **Persistence Attempt:** Malicious service creation  
-- **Defensive Outcome:** Execution, lateral movement, and discovery blocked by Defender  
-- **Impact:** Contained before successful lateral movement or data exfiltration  
-
-➡️ See the **Investigation Report** for remediation actions and lessons learned.
+- Initial brute force attack resulted in successful administrator authentication
+- Hands-on-keyboard activity confirmed through interactive discovery commands
+- Malware deployment and persistence attempted
+- Defense evasion techniques detected and blocked
+- Lateral movement attempts prevented
+- Attack contained through automated Defender disruption actions
