@@ -1,5 +1,5 @@
 # SOC Investigation: Hands-On Keyboard Activity on Domain Controller
-**Date:** 2025-11-27  
+#### **Date:** 2025-11-27  
 **Tools:** Microsoft Defender XDR, Advanced Hunting  
 **System:** Windows Domain Controller (MTS-DC)  
 
