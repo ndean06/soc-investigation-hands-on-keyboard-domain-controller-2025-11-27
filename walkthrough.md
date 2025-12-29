@@ -30,9 +30,13 @@ Authentication telemetry confirmed that the brute force activity **did result in
 - `2025-11-26 23:53:21` – Successful network logon from `80.64.19.57` (administrator)
 - `2025-11-27 04:24:38` – Successful remote logon from `80.64.19.57`
 
-![Successful administrator logons using NTLM authentication](screenshots/2025-11-27-mts-dc-compromise-7.png)
+![Successful administrator logons using NTLM authentication](screenshots/2025-11-27-mts-dc-compromise-6.png)
 
 *LogonSuccess events confirming administrator authentication via NTLM from an external IP address.*
+
+![Successful administrator logons using NTLM authentication](screenshots/2025-11-27-mts-dc-compromise-9.png)
+
+*Successful RemoteInteractive logon to the domain controller using the administrator account, indicating authenticated remote access from an external source.*
 
 ---
 
