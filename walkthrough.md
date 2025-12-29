@@ -34,25 +34,30 @@ Authentication telemetry confirmed that the brute force activity **did result in
 
 *LogonSuccess events confirming administrator authentication via NTLM from an external IP address.*
 
+Authentication logs were reviewed to determine whether the suspicious activity resulted in successful access, with a focus on remote interactive logons indicating direct system access.
+
 ![Successful administrator logons using NTLM authentication](screenshots/2025-11-27-mts-dc-compromise-9.png)
 
 *Successful RemoteInteractive logon to the domain controller using the administrator account, indicating authenticated remote access from an external source.*
 
 ---
 
-## Step 3 — Post-Logon Activity Review (Initial Hands-on Interaction)
+## Step 3 — Post-Logon Activity Review (Attacker Discovery via net.exe)
 
-**Objective:** Determine whether successful authentication led to attacker interaction.
+**Objective:** Identify attacker-controlled activity following successful interactive authentication.
 
-Following the confirmed logon, process execution telemetry was reviewed. Shortly after authentication, the attacker executed discovery commands to validate access and privileges.
+After confirming a successful **RemoteInteractive** administrator logon, post-logon process execution telemetry on the domain controller was reviewed to determine whether the attacker performed actions indicative of hands-on-keyboard activity.
+
+This review identified **command-line–driven discovery activity** executed under the **administrator** account. Specifically, the attacker launched `net.exe` with domain enumeration arguments (`users /domain`), indicating an attempt to enumerate domain users and validate privileges after gaining access.
 
 **Timeline correlation:**
-- `2025-11-27 04:25:50` – Discovery command executed (`whoami.exe`)
-- `2025-11-27 04:25:59` – Logoff event
+- `2025-11-27 04:24:38` — Successful RemoteInteractive logon (administrator)
+- `2025-11-27 04:25:50` — `net.exe users /domain` executed
+- `2025-11-27 04:25:59` — Logoff event
 
-![Discovery command execution following successful administrator logon](screenshots/2025-11-27-mts-dc-compromise-7.png)
+![Attacker discovery activity using net.exe after successful administrator logon](screenshots/2025-11-27-mts-dc-compromise-77.png)
 
-*Execution of discovery commands shortly after successful administrator authentication.*
+*Execution of net.exe with domain enumeration arguments under the administrator account, confirming hands-on-keyboard discovery activity following successful authentication.*
 
 ---
 
