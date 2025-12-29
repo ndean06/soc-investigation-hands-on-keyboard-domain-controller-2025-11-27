@@ -59,6 +59,8 @@ This review identified **command-line–driven discovery activity** executed und
 
 *Execution of net.exe with domain enumeration arguments under the administrator account, confirming hands-on-keyboard discovery activity following successful authentication.*
 
+Process execution telemetry was reviewed to correlate post-logon activity with the attacker’s remote IP and source device.
+
 ![Attacker discovery activity using net.exe and ip and device correlation](screenshots/2025-11-27-mts-dc-compromise-78.png)
 
 *Execution of net.exe users /domain initiated from remote session IP 80.64.19.57 and device WIN-MSK4CEAIDIG, confirming hands-on-keyboard discovery.*
