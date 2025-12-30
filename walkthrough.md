@@ -137,15 +137,92 @@ Additional administrator authentication attempts were observed from new external
 
 ---
 
-## Step 8 — Incident Scope & Final Assessment
+## Step 8 — Incident Scope Validation (IOC Sweep)
 
-**Objective:** Understand the full scope of the attack.
+**Objective:** Validate the full blast radius of the incident by determining whether known attacker infrastructure or malware artifacts exist on additional assets.
 
-The Defender incident graph was reviewed to visualize relationships between attacker infrastructure, affected assets, user accounts, and malicious activity.
+After confirming hands-on-keyboard access to the domain controller, scoping activities were performed to ensure the compromise was limited to a single system. This included reviewing authentication activity from all identified attacker IPs and performing an environment-wide sweep for known malicious file hashes.
 
-![Incident graph showing post-compromise attacker activity](screenshots/2025-11-27-mts-dc-compromise-incident-graph.png)
+---
 
-*Incident graph illustrating attacker interactions, affected assets, and investigation scope.*
+### IP-Based Scope Validation
+
+Known attacker IP addresses were reviewed across authentication telemetry to determine whether any additional endpoints successfully authenticated or interacted with attacker infrastructure.
+
+#### IP: 80.64.19.57 (WIN-MSK4CEAIDIG)
+
+![Authentication activity from 80.64.19.57 across the environment](screenshots/2025-11-27-mts-dc-compromise-104.png)
+
+*Environment-wide authentication review for external IP 80.64.19.57 showing successful logons limited to the domain controller.*
+
+**Assessment:**  
+Authentication activity from `80.64.19.57` was limited to `mts-dc`. No additional assets were accessed.
+
+---
+
+#### IP: 45.227.254.155 (b_116)
+
+![Authentication activity from 45.227.254.155 across the environment](screenshots/2025-11-27-mts-dc-compromise-105.png)
+
+*Authentication telemetry review for IP 45.227.254.155 showing activity scoped to the domain controller.*
+
+**Assessment:**  
+No evidence of successful authentication or interactive access on assets other than the domain controller.
+
+---
+
+#### IP: 202.53.6.68
+
+![Network logon activity from 202.53.6.68](2025-11-27-mts-dc-compromise-100.png)
+
+*Network logon activity originating from 202.53.6.68 showing repeated authentication attempts limited to the domain controller.*
+
+**Assessment:**  
+Activity from this IP did not result in access to additional assets. Subsequent SMB-based actions were blocked.
+
+---
+
+### File Hash Scope Validation
+
+Environment-wide process execution telemetry was reviewed to identify whether known malicious file hashes were present on any additional endpoints.
+
+#### Hash: svchost.exe (Masquerading / CryptInject)
+
+![Environment-wide hash sweep for masquerading svchost.exe](screenshots/2025-11-27-mts-dc-compromise-102.png)
+
+*Environment-wide hash sweep for the malicious svchost.exe hash returning no additional results.*
+
+**Assessment:**  
+The masquerading `svchost.exe` hash was not observed executing on any other assets.
+
+---
+
+#### Hash: RRcatEtz.exe (RemoteExec)
+
+![Environment-wide hash sweep for RRcatEtz.exe](screenshots/2025-11-27-mts-dc-compromise-101.png)
+
+*Environment-wide hash sweep for RRcatEtz.exe confirming no presence outside the domain controller.*
+
+**Assessment:**  
+`RRcatEtz.exe` was not found on any other endpoints in the environment.
+
+---
+
+### Scope Determination
+
+Based on IP-based authentication review and environment-wide file hash scoping:
+
+- Attacker infrastructure interacted only with the domain controller
+- No additional endpoints authenticated successfully
+- No malicious file hashes were observed on other assets
+- No evidence of lateral movement or secondary endpoint compromise was identified
+
+---
+
+### Analyst Conclusion — Scope
+
+The incident was successfully contained to a single asset (`mts-dc`). Although multiple attacker IPs and re-entry attempts were observed, environment-wide scoping confirmed no additional compromise or malware propagation beyond the domain controller.
+
 
 ---
 
