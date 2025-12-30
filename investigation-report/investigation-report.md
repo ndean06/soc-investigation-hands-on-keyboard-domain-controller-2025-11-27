@@ -98,7 +98,6 @@ An external attacker successfully authenticated using the domain administrator a
 	- `2.57.121.20`
 	- `93.123.109.245`
 	- `202.53.6.68`
-	-
 - Add file hash to EDR blocklists:
 	- `3c2fe308c0a563e06263bbacf793bbe9b2259d795fcc36b953793a7e499e7f71`
 	- `60b6d7664598e6a988d9389e6359838be966dfa54859d5cb1453cbc9b126ed7d`
