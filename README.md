@@ -22,7 +22,7 @@ malware deployment. The activity was detected and contained using Microsoft Defe
 - 📄 **SOC Walkthrough:** [`walkthrough.md`](walkthrough.md)  
   Step-by-step technical investigation with screenshots and analyst reasoning
 
-- 📄 **Incident Report:** [`incident-report.md`](incident-report.md)  
+- 📄 **Incident Report:** [`incident-report.md`](investigation-report/investigation-report.md)  
   Formal incident report including timeline, impact, scope, and recommendations
 
 - 📸 **Screenshots:** [`/screenshots`](screenshots/)  
