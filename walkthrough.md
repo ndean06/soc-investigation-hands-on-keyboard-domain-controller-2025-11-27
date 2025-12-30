@@ -1,11 +1,13 @@
-# SOC Investigation Walkthrough  
+# SOC Investigation Walkthrough
+
+**Summary:** External attacker obtained administrator credentials, achieved RDP access to the domain controller, performed discovery and persistence attempts, and was ultimately contained with no lateral spread.
 **Incident:** Hands-on Keyboard Attack Against Domain Controller  
 **Date:** 2025-11-27  
 **Target:** mts-dc.mts.local (Windows Server 2022 – Domain Controller)
 
 ---
 
-## Step 1 — Initial Alert & Brute Force Activity
+## Step 1 Initial Alert & Brute Force Activity
 
 **Objective:** Identify the triggering alert and determine if malicious activity is present.
 
@@ -23,7 +25,7 @@ At this stage, alerts alone do not confirm compromise. The objective is to deter
 
 ---
 
-## Step 2 — Authentication Validation (Successful Logons Identified)
+## Step 2 Authentication Validation (Successful Logons Identified)
 
 **Objective:** Determine whether brute force attempts resulted in successful authentication.
 
@@ -46,7 +48,7 @@ The RemoteInteractive logon marks the **confirmed point of compromise**.
 
 ---
 
-## Step 3 — Post-Logon Activity Review (Attacker Discovery via net.exe)
+## Step 3 Post-Logon Activity Review (Attacker Discovery via net.exe)
 
 **Objective:** Identify attacker-controlled activity following successful interactive authentication.
 
@@ -69,11 +71,12 @@ This review identified **command-line–driven discovery activity** executed und
 
 ---
 
-## Step 4 — Secondary Access & Malware Deployment
+## Step 4 Secondary Access & Malware Deployment
 
-**Objective:** Identify follow-on activity after initial access.
 
-Subsequent telemetry revealed additional access from a separate external IP, followed by suspicious file creation and service installation activity consistent with malware deployment.
+**Objective:** Identify post-compromise activity after initial access.
+
+Revealed additional access from a separate external IP, followed by suspicious file creation and service installation activity consistent with malware deployment.
 
 **Timeline correlation:**
 - `2025-11-27 06:07:14` — Network logon from `202.53.6.68`
@@ -89,7 +92,7 @@ This activity represents a transition from reconnaissance to **persistence estab
 
 ---
 
-## Step 5 — Defense Evasion Attempt Detected
+## Step 5 Defense Evasion Attempt Detected
 
 **Objective:** Identify attempts to evade security controls.
 
@@ -104,7 +107,7 @@ Microsoft Defender detected and prevented execution of a suspicious binary masqu
 
 ---
 
-## Step 6 — Lateral Movement Attempts Blocked
+## Step 6 Lateral Movement Attempts Blocked
 
 **Objective:** Assess lateral movement attempts and impact.
 
@@ -120,7 +123,7 @@ Multiple SMB-based access attempts originating from attacker infrastructure were
 
 ---
 
-## Step 7 — Continued Credential Abuse & Re-Entry Attempts
+## Step 7 Continued Credential Abuse & Re-Entry Attempts
 
 **Objective:** Identify further attempts to reuse compromised credentials.
 
@@ -137,7 +140,7 @@ Additional administrator authentication attempts were observed from new external
 
 ---
 
-## Step 8 — Incident Scope Validation (IOC Sweep)
+## Step 8 Incident Scope Validation (IOC Sweep)
 
 **Objective:** Validate the full blast radius of the incident by determining whether known attacker infrastructure or malware artifacts exist on additional assets.
 
