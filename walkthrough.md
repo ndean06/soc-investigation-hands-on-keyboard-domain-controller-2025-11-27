@@ -173,7 +173,7 @@ No evidence of successful authentication or interactive access on assets other t
 
 #### IP: 202.53.6.68
 
-![Network logon activity from 202.53.6.68](2025-11-27-mts-dc-compromise-100.png)
+![Network logon activity from 202.53.6.68](screenshots/2025-11-27-mts-dc-compromise-100.png)
 
 *Network logon activity originating from 202.53.6.68 showing repeated authentication attempts limited to the domain controller.*
 
